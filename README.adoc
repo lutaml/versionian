@@ -1,0 +1,874 @@
+= Versionian: Declarative versioning schemes
+:toclevels:3
+:toc:
+
+image:https://img.shields.io/gem/v/versionian.svg[RubyGems Version]
+image:https://img.shields.io/github/license/lutaml/versionian.svg[License]
+image:https://github.com/lutaml/versionian/actions/workflows/rake.yml/badge.svg["Build", link="https://github.com/lutaml/versionian/actions/workflows/rake.yml"]
+
+== Purpose
+
+Versionian is a Ruby library for declaring, parsing, comparing, and rendering
+version schemes. It provides model-driven primitives for defining how versions
+work, supporting semantic versioning, calendar versioning, and unlimited custom
+schemes through declarative YAML configuration.
+
+=== Why Versionian?
+
+Ruby's built-in `Gem::Version` handles semantic versioning well, but real-world
+projects use diverse versioning schemes that `Gem::Version` cannot parse or
+compare correctly:
+
+* **Calendar versioning** (`2024.01.17`, `2024.03`) - `Gem::Version` parses these but cannot enforce date validation
+* **Single-number versioning** (`5`, `5+hotfix`, `5-beta`) - `Gem::Version` treats postfixes incorrectly
+* **Human-readable versions** (`Alpha.1.5`, `Beta.2.0`) - `Gem::Version` cannot compare these
+* **Hash-based versions** (`2024.01.abc123`) - `Gem::Version` has no concept of commit hashes
+* **Custom schemes** - Every project has unique versioning needs
+
+=== How Versionian is different
+
+[cols="h,1,1",options="header"]
+|===
+|Feature |Gem::Version |Versionian
+
+|Supported schemes
+|Semantic versioning only
+|4 built-in schemes, unlimited custom
+
+|Extensibility
+|Not extensible
+|Define custom schemes via declarative YAML or Ruby
+
+|Component types
+|Integers and dot-separated strings
+|Integer, Float, Enum, DatePart, Hash, Postfix, Prerelease, String, Wildcard
+
+|Comparison strategy
+|Fixed SemVer rules
+|Per-scheme comparison (lexicographic arrays)
+
+|Validation
+|Basic format validation
+|Type-aware validation (date ranges, enum values, hash formats)
+
+|Programmatic building
+|Not supported
+|Build versions from component values
+|===
+
+Versionian fills the gap between `Gem::Version`'s semantic versioning focus and the diverse versioning needs of real-world projects.
+
+== Features
+
+* <<built-in-schemes,Built-in version schemes>>
+* <<declarative-schemes,Declarative custom schemes>>
+* <<discovering-schemes,Discovering available schemes>>
+* <<component-types,Extensible component type system>>
+* <<range-matching,Version range matching>>
+* <<yaml-config,YAML configuration with safe loading>>
+* <<custom-schemes,Custom Ruby schemes>>
+
+== Quick start
+
+Get started with Versionian in three steps:
+
+.Require the library
+[source,ruby]
+----
+require 'versionian'
+----
+
+.Parse and compare versions
+[source,ruby]
+----
+# Use built-in semantic versioning
+scheme = Versionian.get_scheme(:semantic)
+
+version = scheme.parse("1.12.0")
+puts version.to_s  # => "1.12.0"
+
+# Compare versions
+result = scheme.compare("1.12.0", "2.0.0")
+puts result  # => -1 (less than)
+----
+
+.Declare a custom scheme via YAML
+[source,yaml]
+----
+# schemes/my_scheme.yaml
+name: my_scheme
+type: declarative
+description: Custom version scheme
+components:
+  - name: major
+    type: integer
+    separator: "."
+  - name: minor
+    type: integer
+    separator: "."
+  - name: patch
+    type: integer
+    optional: true
+----
+
+[source,ruby]
+----
+# Load and use custom scheme
+scheme = Versionian::SchemeLoader.from_yaml_file('schemes/my_scheme.yaml')
+Versionian.register_scheme(:my_scheme, scheme)
+
+version = scheme.parse("1.2.3")
+puts version.major  # => 1
+----
+
+== Architecture
+
+Versionian follows a model-driven architecture where version schemes define
+their own parsing, comparison, and rendering behavior.
+
+=== Lexicographic array comparison
+
+Versionian uses lexicographic array comparison instead of weighted integer sums.
+Each version stores a `comparable_array` where each element represents a
+component in comparison order:
+
+[source,ruby]
+----
+# Version stores array for comparison
+version.comparable_array  # => [2024, 1, 17, :rc, 1]
+
+# Comparison is element-by-element
+[2024, 1, 17] <=> [2024, 1, 18]  # => -1
+[2024, 1, 17] <=> [2024, 2, 1]   # => -1
+[2024, 1, 17] <=> [2024, 1, 17]  # => 0
+----
+
+This approach avoids integer overflow, provides better performance, and allows
+each component type to define its own comparison semantics.
+
+=== Parse versus build
+
+Versionian provides two ways to create version identifiers:
+
+* **Parse**: Extract components from a version string
+* **Build**: Create a version from component values
+
+[source,ruby]
+----
+# Parse: from string
+version = scheme.parse("1.12.0")
+
+# Build: from component values
+version = scheme.build(major: 1, minor: 12, patch: 0)
+----
+
+Both methods return the same `VersionIdentifier` object with a
+`comparable_array` for comparison.
+
+=== Object model
+
+.Versionian object model
+[source]
+----
+Versionian::VersionScheme (abstract)
+├── parse(version_string) -> VersionIdentifier
+├── build(component_values) -> VersionIdentifier
+├── compare_arrays(a, b) -> Integer
+├── render(version) -> String
+└── matches_range?(version_string, range) -> Boolean
+
+Implemented Schemes:
+├── Semantic (SemVer)
+├── CalVer (Calendar versioning)
+├── SoloVer (Single number with postfix)
+├── WendtVer (Auto-incrementing)
+└── Declarative (Custom segment-based)
+
+VersionIdentifier objects:
+├── raw_string (original input)
+├── scheme (reference to scheme)
+├── components (array of VersionComponent)
+└── comparable_array (for lexicographic comparison)
+
+Component type registry:
+├── Integer (numeric sequences)
+├── Float (IEEE754 floats)
+├── String (arbitrary text)
+├── Enum (ordered stages)
+├── DatePart (calendar components)
+├── Prerelease (SemVer prereleases)
+├── Postfix (SoloVer suffixes)
+├── Hash (git commit hashes)
+└── Custom types (user-defined)
+----
+
+== Installation
+
+Add this line to your application's Gemfile:
+
+[source,ruby]
+----
+gem 'versionian'
+----
+
+And then execute:
+
+[source,shell]
+----
+bundle install
+----
+
+Or install it yourself as:
+
+[source,shell]
+----
+gem install versionian
+----
+
+== Features
+
+[[built-in-schemes]]
+=== Built-in schemes
+
+[[built-in-schemes-general]]
+==== General
+
+Versionian provides built-in support for common versioning schemes.
+Each scheme is pre-registered and ready to use.
+
+[[built-in-schemes-usage]]
+==== Usage
+
+[source,ruby]
+----
+scheme = Versionian.get_scheme(:semantic)  <1>
+version = scheme.parse("1.12.0")            <2>
+result = scheme.compare("1.12.0", "2.0.0")  <3>
+----
+<1> Get a built-in scheme by name.
+<2> Parse a version string.
+<3> Compare two versions (returns -1, 0, or 1).
+
+Where,
+
+`scheme`:: A VersionScheme instance.
+`version`:: A VersionIdentifier object.
+`result`:: Integer: -1 (less than), 0 (equal), 1 (greater than).
+
+[[built-in-schemes-list]]
+==== Supported schemes
+
+[cols="1,1,1",options="header"]
+|===
+|Scheme |Format |Description
+
+|SemVer
+|`MAJOR.MINOR.PATCH[-PRERELEASE][+BUILD]`
+|Semantic versioning per semver.org
+
+|CalVer
+|`YYYY.MM.DD`, `YYYY.MM`, `YY.MM.DD`
+|Calendar versioning with date validation
+
+|SoloVer
+|`N[+|-]postfix`
+|Single number with optional postfix
+
+|WendtVer
+|`MAJOR.MINOR.PATCH.BUILD`
+|Auto-incrementing with carryover
+|===
+
+[[declarative-schemes]]
+=== Declarative custom schemes
+
+[[declarative-schemes-general]]
+==== General
+
+Declarative schemes define version formats using segment definitions instead of
+regular expressions. Each component specifies its type, separator, prefix, and
+optional status, allowing the parser to extract components in O(n) time.
+
+Benefits over regex-based patterns:
+
+* **No ReDoS vulnerabilities** - State machine parsing is immune to catastrophic backtracking
+* **O(n) performance** - Single pass through the string
+* **Declarative syntax** - Clear, readable component definitions
+* **Type-aware parsing** - Each component type handles its own validation
+
+[[declarative-schemes-yaml]]
+==== YAML schema
+
+[source,yaml]
+----
+name: my_scheme               <1>
+type: declarative             <2>
+description: Custom scheme    <3>
+components:                  <4>
+  - name: major
+    type: integer
+    separator: "."           <5>
+  - name: minor
+    type: integer
+    separator: "."           <6>
+  - name: patch
+    type: integer            <7>
+----
+<1> Unique scheme identifier (symbol).
+<2> Scheme type: `declarative`.
+<3> Optional description of the scheme.
+<4> Array of component definitions in order.
+<5> Separator that precedes this component.
+<6> Each segment can have its own separator.
+<7> Last segment typically has no separator.
+
+Where,
+
+`name`:: Symbol identifier for the scheme.
+`type:: Scheme type (`declarative`).
+`description:: Human-readable description.
+`components:: Array of component definitions.
+
+.Component attributes
+
+[cols="1,1",options="header"]
+|===
+|Attribute |Purpose
+
+|name
+|Component name (symbol)
+
+|type
+|Component type (integer, string, enum, date_part, etc.)
+
+|separator
+|String that precedes this component (e.g., `"."`)
+
+|prefix
+|String that identifies an optional component (e.g., `"-"`, `"+"`)
+
+|optional
+|Boolean: true if component may be absent
+
+|include_prefix_in_value
+|Boolean: include prefix in value for component type parsing
+
+|subtype
+|For date_part: `year`, `month`, `day`, `week`
+
+|values
+|For enum type: allowed values
+
+|order
+|For enum type: comparison order
+
+|validate
+|Hash with `min`/`max` validation rules
+|===
+
+[[declarative-schemes-loading]]
+==== Loading declarative schemes
+
+[source,ruby]
+----
+# Load from YAML file
+scheme = Versionian::SchemeLoader.from_yaml_file('schemes/custom.yaml')
+
+# Register for use
+Versionian.register_scheme(:custom, scheme)
+
+# Use the scheme
+version = scheme.parse("1.2.3")
+puts version.major  # => 1
+----
+
+[[declarative-schemes-examples]]
+==== Declarative examples
+
+[[semantic-declarative]]
+===== Semantic versioning
+
+[source,yaml]
+----
+name: semantic
+type: declarative
+description: Semantic versioning
+components:
+  - name: major
+    type: integer
+    separator: "."
+  - name: minor
+    type: integer
+    separator: "."
+  - name: patch
+    type: integer
+  - name: prerelease
+    type: string
+    prefix: "-"
+    optional: true
+  - name: build
+    type: string
+    prefix: "+"
+    optional: true
+----
+
+Usage:
+[source,ruby]
+----
+scheme = Versionian::SchemeLoader.from_yaml_file('schemes/semantic.yaml')
+
+v = scheme.parse("1.2.3-alpha.1+build.123")
+v.major      # => 1
+v.minor      # => 2
+v.patch      # => 3
+v.prerelease # => "alpha.1"
+v.build      # => "build.123"
+
+# Optional components are nil when absent
+v = scheme.parse("1.2.3")
+v.prerelease # => nil
+v.build      # => nil
+----
+
+[[calver-declarative]]
+===== Calendar versioning
+
+[source,yaml]
+----
+name: calver
+type: declarative
+description: Calendar versioning YYYY.MM.DD
+components:
+  - name: year
+    type: date_part
+    subtype: year
+    separator: "."
+  - name: month
+    type: date_part
+    subtype: month
+    separator: "."
+  - name: day
+    type: date_part
+    subtype: day
+----
+
+Usage:
+[source,ruby]
+----
+scheme = Versionian::SchemeLoader.from_yaml_file('schemes/calver.yaml')
+
+v = scheme.parse("2024.01.17")
+v.year   # => 2024
+v.month  # => 1 (not "01")
+v.day    # => 17
+
+# Invalid dates raise ParseError
+scheme.parse("2024.13.17")  # => Invalid month '13'
+scheme.parse("2024.02.30")  # => Invalid day '30'
+----
+
+[[solover-declarative]]
+===== SoloVer with postfix
+
+[source,yaml]
+----
+name: solover
+type: declarative
+description: Single number with optional postfix
+components:
+  - name: number
+    type: integer
+  - name: postfix
+    type: postfix
+    prefix: "+"
+    optional: true
+    include_prefix_in_value: true  <1>
+----
+<1> Postfix type handles prefix internally, so include it in the value.
+
+Usage:
+[source,ruby]
+----
+scheme = Versionian::SchemeLoader.from_yaml_file('schemes/solover.yaml')
+
+v = scheme.parse("5")
+v.number   # => 5
+v.postfix  # => nil
+
+v = scheme.parse("5+hotfix")
+v.number    # => 5
+v.postfix   # => {:prefix=>"+", :identifier=>"hotfix"}
+
+v = scheme.parse("5-beta")
+v.number    # => 5
+v.postfix   # => {:prefix=>"-", :identifier=>"beta"}
+----
+
+[[enum-declarative]]
+===== Enum with custom ordering
+
+[source,yaml]
+----
+name: stage
+type: declarative
+description: Release stage with ordering
+components:
+  - name: major
+    type: integer
+    separator: "."
+  - name: minor
+    type: integer
+    separator: "."
+  - name: stage
+    type: enum
+    prefix: "-"
+    optional: true
+    values: [alpha, beta, rc, stable]
+    order: [alpha, beta, rc, stable]
+----
+
+Usage:
+[source,ruby]
+----
+scheme = Versionian::SchemeLoader.from_yaml_file('schemes/stage.yaml')
+
+v = scheme.parse("1.2.0-beta")
+v.stage  # => :beta
+
+# Comparison respects order
+scheme.compare("1.2.0-alpha", "1.2.0-beta")  # => -1 (alpha < beta)
+scheme.compare("1.2.0-rc", "1.2.0-stable")    # => -1 (rc < stable)
+----
+
+[[discovering-schemes]]
+=== Discovering available schemes
+
+Versionian provides several ways to discover available schemes:
+
+.List registered schemes
+[source,ruby]
+----
+# List all registered scheme names
+scheme_names = Versionian.scheme_registry.registered
+puts scheme_names.inspect  # => [:semantic, :calver, :solover, :wendtver]
+
+# Check if a scheme exists
+Versionian.scheme_registry.registered.include?(:semantic)  # => true
+----
+
+.Detect scheme from version string
+[source,ruby]
+----
+# Auto-detect which scheme matches a version string
+detected = Versionian.detect_scheme("1.2.3")
+puts detected.name  # => :semantic
+
+detected = Versionian.detect_scheme("2024.01.17")
+puts detected.name  # => :calver
+
+detected = Versionian.detect_scheme("5+hotfix")
+puts detected.name  # => :solover
+
+# Returns nil for unrecognised version strings
+detected = Versionian.detect_scheme("not-a-version")
+puts detected  # => nil
+----
+
+.Get and use a scheme
+[source,ruby]
+----
+# Get a scheme by name
+scheme = Versionian.get_scheme(:semantic)
+
+# Check scheme capabilities
+puts scheme.supports?("1.2.3")    # => true
+puts scheme.supports?("invalid")  # => false
+
+# Parse and compare
+version = scheme.parse("1.12.0")
+puts version.to_s  # => "1.12.0"
+
+# Raises error for unknown schemes
+begin
+  Versionian.get_scheme(:unknown)
+rescue Versionian::Errors::InvalidSchemeError => e
+  puts e.message  # => "Unknown scheme: unknown"
+end
+----
+
+[[component-types]]
+=== Component type system
+
+[[component-types-general]]
+==== General
+
+Versionian provides built-in component types for parsing and comparing version
+components. Each type defines its own parsing, comparison, and formatting behavior.
+
+[[component-types-table]]
+==== Available types
+
+[cols="1,1,1",options="header"]
+|===
+|Type |Purpose |Comparison
+
+|Integer
+|Numeric sequences (major, minor, patch)
+|Numeric
+
+|Float
+|FloatVer, IEEE754 floats
+|Float comparison
+
+|String
+|Arbitrary text
+|Lexicographic
+
+|Enum
+|Ordered stages (alpha < beta < rc)
+|Order array index
+
+|DatePart
+|Calendar components (year, month, day, week)
+|Numeric with validation
+
+|Prerelease
+|SemVer prereleases (alpha.1, beta.2)
+|SemVer rules (numeric < alphanumeric)
+
+|Postfix
+|SoloVer suffixes (+hotfix, -beta)
+|Prefix-sensitive (none < + < -)
+
+|Hash
+|Git commit hashes
+|Length first, then lexicographic
+
+|Wildcard
+|Ignored components
+|Always equal
+|===
+
+[[component-types-reference]]
+==== Type reference
+
+.Integer type
+[source,yaml]
+----
+components:
+  - name: major
+    type: integer
+----
+
+.Float type
+[source,yaml]
+----
+components:
+  - name: version
+    type: float
+----
+
+.String type
+[source,yaml]
+----
+components:
+  - name: build
+    type: string
+----
+
+.Enum type with custom ordering
+[source,yaml]
+----
+components:
+  - name: stage
+    type: enum
+    prefix: "-"
+    optional: true
+    values: [alpha, beta, rc, stable]
+    order: [alpha, beta, rc, stable]
+----
+
+.DatePart type with validation
+[source,yaml]
+----
+components:
+  - name: year
+    type: date_part
+    subtype: year
+    separator: "."
+  - name: month
+    type: date_part
+    subtype: month
+    separator: "."
+  - name: day
+    type: date_part
+    subtype: day
+----
+
+.Prerelease type (SemVer)
+[source,yaml]
+----
+components:
+  - name: prerelease
+    type: prerelease
+    prefix: "-"
+    optional: true
+----
+
+.Postfix type (SoloVer)
+[source,yaml]
+----
+components:
+  - name: postfix
+    type: postfix
+    prefix: "+"
+    optional: true
+    include_prefix_in_value: true
+----
+
+.Hash type
+[source,yaml]
+----
+components:
+  - name: hash
+    type: hash
+----
+
+[[range-matching]]
+=== Version range matching
+
+[[range-matching-general]]
+==== General
+
+Versionian supports matching versions against range specifications.
+
+[[range-matching-types]]
+==== Range types
+
+* **equals**: Exact version match
+* **before**: Less than boundary version
+* **after**: Greater than or equal to boundary version
+* **between**: Inclusive range between two versions
+
+[[range-matching-usage]]
+==== Usage
+
+[source,ruby]
+----
+scheme = Versionian.get_scheme(:semantic)
+
+# After a specific version (inclusive)
+range = Versionian::VersionRange.new(:after, scheme, version: "1.12.0")
+range.matches?("1.13.0")  # => true
+range.matches?("1.12.0")  # => true
+range.matches?("1.11.0")  # => false
+
+# Between two versions
+range = Versionian::VersionRange.new(:between, scheme, from: "1.12.0", to: "2.0.0")
+range.matches?("1.15.0")  # => true
+range.matches?("2.1.0")   # => false
+----
+
+[[custom-schemes]]
+=== Custom Ruby schemes
+
+[[custom-schemes-general]]
+==== General
+
+For complex versioning schemes, you can create custom scheme classes in Ruby.
+
+[[custom-schemes-example]]
+==== Custom scheme example
+
+[source,ruby]
+----
+class FloatVerScheme < Versionian::VersionScheme
+  def initialize(name: :floatver, description: "Float-based versioning")
+    super
+  end
+
+  def parse(version_string)
+    float_value = Float(version_string)
+    Versionian::VersionIdentifier.new(
+      raw_string: version_string,
+      scheme: self,
+      components: [],
+      comparable_array: [float_value]
+    )
+  end
+
+  def compare_arrays(a, b)
+    a.first <=> b.first  # Direct float comparison
+  end
+
+  def render(version)
+    version.raw_string
+  end
+end
+
+# Register and use
+Versionian.register_scheme(:floatver, FloatVerScheme.new)
+----
+
+[[yaml-config]]
+=== YAML configuration
+
+[[yaml-config-safety]]
+==== Safe loading
+
+Versionian uses `Psych.safe_load` with a restricted set of permitted classes for
+security:
+
+[source,ruby]
+----
+ALLOWED_CLASSES = [Symbol, Integer, String, Array, Hash, TrueClass, FalseClass, NilClass].freeze
+----
+
+[[yaml-config-loading]]
+==== Loading schemes
+
+[source,ruby]
+----
+# From file
+scheme = Versionian::SchemeLoader.from_yaml_file('schemes/custom.yaml')
+
+# From string
+yaml_string = <<~YAML
+  name: custom
+  type: declarative
+  components:
+    - { name: major, type: integer, separator: "." }
+    - { name: minor, type: integer }
+YAML
+
+scheme = Versionian::SchemeLoader.from_yaml_string(yaml_string)
+----
+
+== Development
+
+After checking out the repo, run:
+
+[source,shell]
+----
+bundle install
+----
+
+Run tests:
+
+[source,shell]
+----
+bundle exec rspec
+----
+
+Run linting:
+
+[source,shell]
+----
+bundle exec rubocop
+----
+
+== Copyright and license
+
+Copyright Ribose.
+
+MIT License - see LICENSE file for details.

@@ -1,0 +1,13 @@
+---
+layout: default
+title: Overview
+nav_order: 1
+has_children: true
+---
+
+= Reference
+
+Detailed technical documentation and API references.
+
+* link:schemes.html[Versioning Schemes] - Complete documentation for all supported schemes
+* link:api.html[API Reference] - Complete API documentation

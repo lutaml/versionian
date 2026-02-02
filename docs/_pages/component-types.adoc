@@ -1,0 +1,151 @@
+---
+layout: default
+title: Component Types
+nav_order: 3
+parent: Core Topics
+---
+
+= Component Types
+
+== Overview
+
+Versionian provides an extensible component type system that allows different versioning
+schemes to parse and compare version components according to their specific rules.
+
+== Built-in Component Types
+
+=== Integer
+
+Numeric sequence components (major, minor, patch, etc.)
+
+[source,ruby]
+----
+component = Versionian::ComponentTypes::Integer.parse("42", definition)
+component.value  # => 42
+
+# Comparison is numeric
+component.to_comparable(42, definition)  # => 42
+----
+
+=== Float
+
+IEEE754 floating point numbers.
+
+[source,ruby]
+----
+component = Versionian::ComponentTypes::Float.parse("3.14", definition)
+component.value  # => 3.14
+----
+
+=== String
+
+Arbitrary text components.
+
+[source,ruby]
+----
+component = Versionian::ComponentTypes::String.parse("beta", definition)
+component.value  # => "beta"
+----
+
+=== Enum
+
+Ordered stages (alpha, beta, rc, stable, etc.)
+
+[source,ruby]
+----
+definition = Versionian::ComponentDefinition.new(
+  name: :stage,
+  type: :enum,
+  values: [:alpha, :beta, :rc, :stable],
+  order: [:alpha, :beta, :rc, :stable]
+)
+
+component = Versionian::ComponentTypes::Enum.parse("beta", definition)
+component.value  # => :beta
+
+# Comparison uses order array index
+component.to_comparable(:beta, definition)  # => 1
+component.to_comparable(:rc, definition)    # => 2
+----
+
+=== DatePart
+
+Calendar components (year, month, day, week, etc.) with range validation.
+
+[source,ruby]
+----
+definition = Versionian::ComponentDefinition.new(
+  name: :month,
+  type: :date_part,
+  subtype: :month
+)
+
+component = Versionian::ComponentTypes::DatePart.parse("06", definition)
+component.value  # => 6
+
+# Validates ranges (month: 1-12, day: 1-31, etc.)
+----
+
+=== Prerelease
+
+SemVer-style prerelease identifiers (alpha.1, beta.2, etc.)
+
+[source,ruby]
+----
+component = Versionian::ComponentTypes::Prerelease.parse("alpha.1", definition)
+component.value  # => [:alpha, 1]
+
+# Comparison follows SemVer rules
+component.to_comparable(:alpha.1, definition)  # => [:alpha, 1]
+----
+
+=== Postfix
+
+SoloVer-style postfixes (+hotfix, -beta, etc.)
+
+[source,ruby]
+----
+component = Versionian::ComponentTypes::Postfix.parse("+hotfix", definition)
+component.value  # => {prefix: "+", identifier: "hotfix"}
+----
+
+=== Hash
+
+Git commit hashes or similar identifiers.
+
+[source,ruby]
+----
+component = Versionian::ComponentTypes::Hash.parse("abc123def", definition)
+component.value  # => "abc123def"
+
+# Compares by length first, then lexicographically
+component.to_comparable("abc123def", definition)  # => [9, "abc123def"]
+----
+
+== Custom Component Types
+
+You can register your own component types:
+
+[source,ruby]
+----
+module Versionian
+  module ComponentTypes
+    class CustomType < Base
+      def self.parse(value, definition)
+        # Parse logic here
+      end
+
+      def self.to_comparable(value, definition)
+        # Return comparable value
+      end
+
+      def self.format(value)
+        # Format for display
+      end
+    end
+  end
+end
+
+# Register the type
+Versionian::ComponentTypes.register(:custom, Versionian::ComponentTypes::CustomType)
+----

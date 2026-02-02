@@ -1,0 +1,110 @@
+---
+layout: default
+title: Custom Schemes
+nav_order: 1
+parent: Guides
+---
+
+= Creating Custom Schemes
+
+== General
+
+You can create custom versioning schemes by subclassing `Versionian::VersionScheme` or using declarative YAML configuration.
+
+== Declarative YAML approach
+
+For most custom schemes, the declarative YAML approach is recommended:
+
+[source,yaml]
+----
+. Example scheme defined at `my_scheme.yaml`
+----
+[source,yaml]
+----
+name: my_yaml_scheme
+type: declarative
+description: My custom version scheme
+components:
+  - name: major
+    type: integer
+    separator: "."
+  - name: minor
+    type: integer
+    separator: "."
+  - name: patch
+    type: integer
+----
+
+[source,ruby]
+----
+scheme = Versionian::SchemeLoader.from_yaml_file('my_scheme.yaml')
+Versionian.register_scheme(:my_scheme, scheme)
+
+version = scheme.parse("1.2.3")
+puts version.major  # => 1
+puts version.minor  # => 2
+----
+
+== Ruby class approach
+
+For complex versioning schemes, you can create custom scheme classes in Ruby.
+
+[source,ruby]
+----
+class FloatVerScheme < Versionian::VersionScheme
+  def initialize(name: :floatver, description: "Float-based versioning")
+    super
+  end
+
+  def parse(version_string)
+    float_value = Float(version_string)
+    Versionian::VersionIdentifier.new(
+      raw_string: version_string,
+      scheme: self,
+      components: [],
+      comparable_array: [float_value]
+    )
+  end
+
+  def compare_arrays(a, b)
+    a.first <=> b.first  # Direct float comparison
+  end
+
+  def render(version)
+    version.raw_string
+  end
+end
+
+# Register and use
+Versionian.register_scheme(:floatver, FloatVerScheme.new)
+----
+
+== Required methods
+
+A custom scheme must implement:
+
+[cols="2,3"]
+|===
+|Method |Description
+
+|#parse(string)
+|Parse version string and return VersionIdentifier
+
+|#compare_arrays(a, b)
+|Compare two comparable arrays
+
+|#valid?(string)
+|Check if string is valid for this scheme
+|===
+
+== Registering custom schemes
+
+[source,ruby]
+----
+# Register with Versionian
+Versionian.register_scheme(:my_scheme, MyScheme.new)
+
+# Use like built-in schemes
+scheme = Versionian.get_scheme(:my_scheme)
+version = scheme.parse("1.2.3")
+----

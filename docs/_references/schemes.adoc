@@ -1,0 +1,410 @@
+---
+layout: default
+title: Scheme Reference
+nav_order: 1
+parent: Reference
+---
+
+= Versioning Schemes Reference
+
+This reference documents all versioning schemes supported by Versionian, including their
+formats, rules, and implementation details.
+
+== SemVer: Semantic Versioning
+
+[horizontal]
+Format:: `MAJOR.MINOR.PATCH[-PRERELEASE][+BUILD]`
+Status:: Built-in
+Reference:: https://semver.org[semver.org]
+
+=== Description
+
+Semantic Versioning (SemVer) is the most widely used versioning scheme in open source software.
+It follows a simple format where:
+
+* **MAJOR** version increments indicate incompatible API changes
+* **MINOR** version increments add functionality in a backward-compatible manner
+* **PATCH** version increments make backward-compatible bug fixes
+
+Originally proposed by Tom Preston-Werner in 2010, SemVer has become the de facto standard
+for versioning in the open source community, used by npm, RubyGems, and Cargo.
+
+=== Usage
+
+[source,ruby]
+----
+scheme = Versionian.get_scheme(:semantic)
+version = scheme.parse("1.2.3-alpha.1+build.123")
+
+# Component access
+version.component(:major).value  # => 1
+version.component(:minor).value  # => 2
+version.component(:patch).value  # => 3
+
+# Comparison
+scheme.compare("1.2.3", "2.0.0")  # => -1
+----
+
+== CalVer: Calendar Versioning
+
+[horizontal]
+Format:: `YYYY.MM.DD`, `YYYY.MM`, `YY.MM.DD`, etc.
+Status:: Built-in
+Reference:: https://calver.org[calver.org]
+
+=== Description
+
+Calendar Versioning (CalVer) uses a date-based version number. The format provides a clear
+indication of when a release was made. Multiple calendar-based formats are supported:
+
+* `YYYY.MM.DD` - Full date (e.g., 2024.03.22)
+* `YYYY.MM` - Year and month (e.g., 2024.03)
+* `YY.0M.DD` - Short year, zero-padded month and day (e.g., 24.03.22)
+* `YYYY.WW` - Year and week number (e.g., 2024.12)
+
+Proposed by Mahmoud Hashemi in March 2016.
+
+=== Usage
+
+[source,ruby]
+----
+scheme = Versionian.get_scheme(:calver)
+
+# Default format: YYYY.MM.DD
+version = scheme.parse("2024.03.22")
+
+# Compare by date
+scheme.compare("2024.01.01", "2024.12.31")  # => -1
+----
+
+== SoloVer: Single Number Versioning
+
+[horizontal]
+Format:: `N[+-postfix]`
+Status:: Built-in
+Proposed:: March 2024 by beza1e1
+
+=== Description
+
+SoloVer is a simple versioning scheme using a single integer with optional postfixes:
+
+* **Version number**: A single integer starting at 0
+* **Postfix**: Optional, matching regex `[+-][A-Za-z0-9_]+`
+
+=== Precedence Rules
+
+. Higher numbers follow lower numbers
+. `+` postfixes come after no postfix (for hotfixes)
+. `-` postfixes come before no postfix (for pre-releases)
+. Postfixes are sorted alphanumerically
+
+=== Usage
+
+[source,ruby]
+----
+scheme = Versionian.get_scheme(:solover)
+
+# Simple version
+v1 = scheme.parse("5")
+v2 = scheme.parse("10")
+
+# With postfix
+v3 = scheme.parse("5+hotfix")
+v4 = scheme.parse("5-beta")
+
+# Comparison follows SoloVer rules
+scheme.compare("5-beta", "5")        # => -1
+scheme.compare("5", "5+hotfix")      # => -1
+----
+
+== WendtVer: Auto-Incrementing Versioning
+
+[horizontal]
+Format:: `MAJOR.MINOR.PATCH`
+Status:: Built-in
+Proposed:: August 2018 by Brian Wendt
+
+=== Description
+
+WendtVer minimizes thought required for version increments. Starting at 0.0.0:
+
+* **PATCH** increments on every commit
+* **MINOR** increments when PATCH would reach 10, rolling PATCH to 0
+* **MAJOR** increments when MINOR would reach 10, rolling MINOR to 0
+
+=== Usage
+
+[source,ruby]
+----
+scheme = Versionian.get_scheme(:wendtver)
+
+version = scheme.parse("1.2.3")
+next_version = scheme.increment("1.2.3", :patch)  # => "1.2.4"
+----
+
+== ZeroVer
+
+[horizontal]
+Format:: `0.MAJOR.MINOR`
+Status:: Reference Implementation
+Proposed:: April 2018 by Mahmoud Hashemi
+
+=== Description
+
+ZeroVer is a satirical versioning scheme where versions always start with 0,
+suggesting perpetual early development. While meant as a joke, many projects
+fall into ZeroVer simply because they've never made the jump to 1.0.0.
+
+== EffVer: Intended Effort Versioning
+
+[horizontal]
+Format:: `MAJOR.MINOR.PATCH`
+Status:: Reference Implementation
+Proposed:: January 2024 by Jacob Tomlinson
+
+=== Description
+
+EffVer quantifies the intended work required to adopt a change, rather than
+the orthogonality of changes. It focuses on user adoption effort rather than
+categorizing changes as bug fixes, enhancements, or features.
+
+== RomVer: Romantic Versioning
+
+[horizontal]
+Format:: `HUMAN.MAJOR.MINOR`
+Status:: Reference Implementation
+Proposed:: 2015 by Daniel V (Legacy Blog crew)
+
+=== Description
+
+Romantic Versioning follows the format `HUMAN.MAJOR.MINOR` where:
+
+* **HUMAN** is a memorable, human-readable name or word
+* **MAJOR** indicates significant, potentially backward-incompatible changes
+* **MINOR** denotes smaller, backward-compatible updates
+
+== HashVer: Hash Versioning
+
+[horizontal]
+Format:: `YYYY.MM[.DD].HASH`
+Status:: Reference Implementation
+Proposed:: 2020 by miniscruff
+
+=== Description
+
+HashVer is perfect for frequent publishing. The format consists of:
+
+. Full year (YYYY)
+. Zero-padded month (MM)
+. [Optional] Zero-padded day (DD)
+. 10+ characters of the current commit hash
+
+Examples: `2024.01.67092445a1abc`, `2024.03.21.3731a8be0f1a8`
+
+== GitDate
+
+[horizontal]
+Format:: `YYYY.MM.DD.gCOMMIT_HASH`
+Status:: Reference Implementation
+Proposed:: June 2022 by Taylor Brazelton
+
+=== Description
+
+GitDate uses the commit date from a Git repository for clear tracking:
+
+Examples: `2024.03.22.d31d336`, `2024.03.31.44cf59b1`
+
+== PragVer: Pragmatic Versioning
+
+[horizontal]
+Format:: `BIGRELEASE.ANNOUNCE.INCREMENT`
+Status:: Reference Implementation
+Proposed:: December 2023 by Severin Ibarluzea
+
+=== Description
+
+PragVer optimizes for communicating changes to package consumers:
+
+* **BIGRELEASE** - Major updates or significant milestones
+* **ANNOUNCE** - Notable announcements or changes
+* **INCREMENT** - Smaller updates for every contribution
+
+== BreakVer: Break Versioning
+
+[horizontal]
+Format:: `MAJOR.MINOR.NON-BREAKING[-QUALIFIER]`
+Status:: Reference Implementation
+Proposed:: August 2015 by Peter Taoussanis
+
+=== Description
+
+BreakVer addresses SemVer complexity with a simpler format:
+
+* **MAJOR** - Major breaking changes
+* **MINOR** - Minor breaking changes
+* **NON-BREAKING** - Strictly no breaking changes
+
+== Explicit Versioning
+
+[horizontal]
+Format:: `DISRUPTIVE.INCOMPATIBLE.COMPATIBLE.FIX[-OPTIONAL]`
+Status:: Reference Implementation
+Proposed:: February 2017 by Paulo Renato
+
+=== Description
+
+Explicit Versioning uses four identifiers to isolate intentional incompatible
+releases from other types of releases, reducing ambiguity in interpretation.
+
+== ZenVer: Zen Versioning
+
+[horizontal]
+Format:: `VERSION`
+Status:: Reference Implementation
+Proposed:: May 2024 by NotAShelf
+
+=== Description
+
+ZenVer is revolutionary in its simplicity: number go up, software go new.
+Increment VERSION when making any change.
+
+== PVP: Package Versioning Policy
+
+[horizontal]
+Format:: `A.B.C`
+Status:: Reference Implementation
+Proposed:: 2006 for Haskell (Bulat Ziganshin)
+
+=== Description
+
+PVP is designed for the Haskell ecosystem:
+
+* `A.B` - Major version
+* `C` - Minor version
+
+Rules for incrementing are tied to API changes in the package.
+
+== FloatVer: Floating Point Versioning
+
+[horizontal]
+Format:: `BREAKING.NONBREAKING`
+Status:: Reference Implementation
+Proposed:: July 2024 by Alex Shroyer
+
+=== Description
+
+FloatVer uses IEEE754 32-bit floating point numbers:
+
+* **BREAKING** - Incremented for backward-incompatible changes
+* **NONBREAKING** - Incremented for backward-compatible changes
+
+Examples: `0.7`, `290.10008`
+
+== AsymptoVer
+
+[horizontal]
+Format:: `DECIMAL`
+Status:: Reference Implementation
+Popularized:: Donald Knuth (TeX, Metafont)
+
+=== Description
+
+AsymptoVer uses decimal numbers that asymptotically approach an irrational number:
+
+* TeX approaches π: 3, 3.1, 3.14, 3.141, 3.1415...
+* Metafont approaches e: 2, 2.7, 2.71, 2.718...
+
+== TrunkVer
+
+[horizontal]
+Format:: `YYYYMMDDHHMMSS.0.0-gCOMMIT_HASH-BUILD_REF`
+Status:: Reference Implementation
+Proposed:: May 2024 by Chris Klyk & Raimo Radczewski
+
+=== Description
+
+TrunkVer is designed for trunk-based development:
+
+* Timestamp: `YYYYMMDDHHMMSS` in UTC
+* Commit Hash: `gCOMMIT_HASH`
+* Build Ref: CI/CD reference
+
+Ensures each build is uniquely identifiable and supports traceability.
+
+== Declarative: Custom Schemes
+
+[horizontal]
+Format:: User-defined via YAML
+Status:: Built-in
+
+=== Description
+
+Versionian's Declarative scheme allows you to define custom versioning schemes using
+YAML configuration with segment-based definitions. This approach provides:
+
+* **No ReDoS vulnerabilities** - State machine parsing is immune to catastrophic backtracking
+* **O(n) performance** - Single pass through the string
+* **Declarative syntax** - Clear, readable component definitions
+* **Type-aware parsing** - Each component type handles its own validation
+
+[source,yaml]
+----
+# my_scheme.yaml
+name: my_app
+type: declarative
+description: MyApp versioning
+components:
+  - name: major
+    type: integer
+    separator: "."
+  - name: minor
+    type: integer
+    separator: "."
+  - name: patch
+    type: integer
+----
+
+[source,ruby]
+----
+# Load and use the scheme
+scheme = Versionian::SchemeLoader.from_yaml_file('my_scheme.yaml')
+Versionian.register_scheme(:my_app, scheme)
+
+version = scheme.parse("1.2.3")
+puts version.major  # => 1
+----
+
+For more details, see link:../core-topics/declarative-schemes.html[Declarative Schemes].
+
+== Composite: Multiple Format Support
+
+[horizontal]
+Format:: Multiple formats tried in order
+Status:: Built-in
+
+=== Description
+
+Composite schemes try multiple declarative schemes until one matches, supporting projects
+that use different version formats in different contexts.
+
+[source,yaml]
+----
+name: multi_format
+type: composite
+fallback_scheme: semantic
+schemes:
+  - name: with_patch
+    type: declarative
+    components:
+      - { name: major, type: integer, separator: "." }
+      - { name: minor, type: integer, separator: "." }
+      - { name: patch, type: integer, separator: "." }
+      - { name: patchlevel, type: integer }
+  - name: git_hash
+    type: declarative
+    components:
+      - { name: major, type: integer, separator: "." }
+      - { name: minor, type: integer, separator: "." }
+      - { name: patch, type: integer }
+      - { name: git_hash, type: hash, prefix: "-git", include_prefix_in_value: true }
+----

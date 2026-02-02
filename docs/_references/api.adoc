@@ -1,0 +1,251 @@
+---
+layout: default
+title: API Reference
+nav_order: 2
+parent: Reference
+---
+
+= API Reference
+
+== Versionian Module
+
+=== Module Methods
+
+[cols="2,3"]
+|===
+|Method |Description
+
+|#get_scheme(name)
+|Get a registered scheme by name
+
+|#register_scheme(name, scheme)
+|Register a custom scheme
+
+|#detect_scheme(version_string)
+|Auto-detect scheme from version string
+|===
+
+=== Usage Example
+
+[source,ruby]
+----
+# Get built-in scheme
+scheme = Versionian.get_scheme(:semantic)
+
+# Register custom scheme
+Versionian.register_scheme(:custom, MyCustomScheme.new)
+
+# Auto-detect
+scheme = Versionian.detect_scheme("1.2.3")
+----
+
+== VersionIdentifier
+
+The core model representing a version identifier.
+
+=== Attributes
+
+[cols="2,3"]
+|===
+|Attribute |Description
+
+|#raw_string
+|Original version string
+
+|#scheme
+|The scheme that parsed/built this version
+
+|#components
+|Array of VersionComponent objects
+
+|#comparable_array
+|Array used for comparison
+|===
+
+=== Methods
+
+[cols="2,3"]
+|===
+|Method |Description
+
+|#component(name)
+|Get a component by name
+
+|#matches_range?(range)
+|Check if version matches a range
+
+|#to_s
+|Render version as string
+|===
+
+=== Class Methods
+
+[cols="2,3"]
+|===
+|Method |Description
+
+|#build(scheme:, components:)
+|Build a version programmatically
+|===
+
+== VersionScheme
+
+Abstract base class for all version schemes.
+
+=== Instance Methods
+
+[cols="2,3"]
+|===
+|Method |Description
+
+|#parse(version_string)
+|Parse a string into VersionIdentifier (abstract)
+
+|#render(version)
+|Render version to string (default: returns raw_string)
+
+|#compare_arrays(a, b)
+|Compare two comparable arrays
+
+|#compare(a, b)
+|Compare two version strings
+
+|#valid?(version_string)
+|Check if string is valid for this scheme
+
+|#build(**components)
+|Build a version from component values
+|===
+
+=== Subclassing Guidelines
+
+When creating a custom scheme, you must:
+
+. Implement `#parse(version_string)`
+. Optionally override `#compare_arrays(a, b)` for custom comparison logic
+. Optionally override `#render(version)` for custom rendering
+
+== VersionComponent
+
+Represents a single component in a version.
+
+=== Attributes
+
+[cols="2,3"]
+|===
+|Attribute |Description
+
+|#name
+|Symbol identifying the component
+
+|#type
+|Component type (integer, string, enum, etc.)
+
+|#value
+|The parsed value
+
+|#weight
+|Numeric weight for comparison
+
+|#values
+|For enum: allowed values
+
+|#order
+|For enum: sort order
+
+|#definition
+|ComponentDefinition reference
+|===
+
+== VersionRange
+
+Represents a version range for matching.
+
+=== Constructor
+
+[source,ruby]
+----
+# Types:
+#   :equals - Match exact version
+#   :before - Less than boundary
+#   :after - Greater than or equal to boundary
+#   :between - Inclusive range
+
+range = Versionian::VersionRange.new(:after, scheme, version: "1.0.0")
+----
+
+=== Methods
+
+[cols="2,3"]
+|===
+|Method |Description
+
+|#matches?(version_string)
+|Check if version string matches the range
+
+|#includes?(version)
+|Check if VersionIdentifier matches the range
+|===
+
+== SchemeLoader
+
+Load schemes from YAML configuration.
+
+=== Class Methods
+
+[cols="2,3"]
+|===
+|Method |Description
+
+|#from_yaml_file(path)
+|Load scheme from YAML file
+
+|#from_yaml_string(yaml_string)
+|Load scheme from YAML string
+
+|#from_hash(data)
+|Load scheme from Hash
+|===
+
+=== YAML Schema
+
+[source,yaml]
+----
+name: scheme_name
+type: pattern
+pattern: '^(\\d+)\\.(\\d+)$'
+format_template: '{major}.{minor}'
+components:
+  - name: major
+    type: integer
+  - name: minor
+    type: integer
+----
+
+== Component Types Registry
+
+Register and resolve component types.
+
+=== Module Methods
+
+[cols="2,3"]
+|===
+|Method |Description
+
+|#register(name, type_class)
+|Register a component type
+
+|#resolve(type)
+|Resolve type symbol to class
+|===
+
+=== Built-in Types
+
+* `:integer` - Versionian::ComponentTypes::Integer
+* `:float` - Versionian::ComponentTypes::Float
+* `:enum` - Versionian::ComponentTypes::Enum
+* `:string` - Versionian::ComponentTypes::String
+* `:date_part` - Versionian::ComponentTypes::DatePart
+* `:prerelease` - Versionian::ComponentTypes::Prerelease
+* `:postfix` - Versionian::ComponentTypes::Postfix
+* `:hash` - Versionian::ComponentTypes::Hash

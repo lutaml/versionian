@@ -1,0 +1,38 @@
+name: Check Links
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '.github/workflows/links.yml'
+
+jobs:
+  link-check:
+    runs-on: ubuntu-latest
+    container:
+      image: lycheev/lychee
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run link checker
+        run: |
+          lychee --verbose --no-progress \
+            --cache \
+            --cache-path .lycheecache \
+            --max-concurrent-requests 10 \
+            --max-retries 3 \
+            --timeout 30 \
+            'docs/**/*.html' \
+            'docs/**/*.adoc'
+
+      - name: Save cache
+        uses: actions/cache@v4
+        with:
+          path: .lycheecache
+          key: lychee-${{ github.sha }}
+          restore-keys: |
+            lychee-

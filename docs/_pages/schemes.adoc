@@ -1,0 +1,68 @@
+---
+layout: default
+title: Version Schemes
+nav_order: 1
+parent: Core Topics
+has_children: true
+---
+
+= Version Schemes
+
+== Overview
+
+Versionian supports a wide variety of versioning schemes, from well-established standards like
+Semantic Versioning to specialized schemes like Calendar Versioning and SoloVer. This section
+covers the built-in schemes and how to use them.
+
+== Built-in Schemes
+
+[cols="2,3,2"]
+|===
+|Name |Format |Status
+
+| SemVer
+| MAJOR.MINOR.PATCH[-PRERELEASE][+BUILD]
+| Built-in
+
+| CalVer
+| YYYY.MM.DD, YYYY.MM, YY.MM.DD
+| Built-in
+
+| SoloVer
+| N[+-postfix]
+| Built-in
+
+| WendtVer
+| MAJOR.MINOR.PATCH
+| Built-in
+
+| Pattern
+| Custom via YAML
+| Built-in
+
+| Composite
+| Multiple formats
+| Built-in
+
+|===
+
+== Usage
+
+[source,ruby]
+----
+# Get a built-in scheme
+scheme = Versionian.get_scheme(:semantic)
+
+# Parse a version string
+version = scheme.parse("1.12.0")
+
+# Compare two versions
+result = scheme.compare("1.12.0", "2.0.0")  # => -1
+
+# Build a version programmatically
+version = scheme.build(major: 1, minor: 12, patch: 0)
+----
+
+== See Also
+
+* link:../references/schemes.html[Scheme Reference] - Detailed documentation for all supported schemes

@@ -1,0 +1,102 @@
+---
+layout: default
+title: Range Matching
+nav_order: 4
+parent: Core Topics
+---
+
+= Range Matching
+
+== Overview
+
+Versionian supports matching versions against range specifications, useful for
+dependency constraints, feature flags, and version compatibility checks.
+
+== Range Types
+
+[cols="2,3"]
+|===
+|Type |Description
+
+|:equals
+|Matches a specific version exactly
+
+|:before
+|Matches versions less than the boundary
+
+|:after
+|Matches versions greater than or equal to the boundary
+
+|:between
+|Matches versions within an inclusive range
+|===
+
+== Creating Ranges
+
+[source,ruby]
+----
+scheme = Versionian.get_scheme(:semantic)
+
+# Exact version
+equals_range = Versionian::VersionRange.new(:equals, scheme, version: "1.12.0")
+
+# Before a version
+before_range = Versionian::VersionRange.new(:before, scheme, version: "2.0.0")
+
+# After a version (inclusive)
+after_range = Versionian::VersionRange.new(:after, scheme, version: "1.12.0")
+
+# Between two versions
+between_range = Versionian::VersionRange.new(:between, scheme, from: "1.12.0", to: "2.0.0")
+----
+
+== Matching Versions
+
+[source,ruby]
+----
+range = Versionian::VersionRange.new(:after, scheme, version: "1.12.0")
+
+range.matches?("1.13.0")  # => true
+range.matches?("1.12.0")  # => true (inclusive)
+range.matches?("1.11.0")  # => false
+----
+
+== Scheme Methods
+
+You can also use the scheme's `matches_range?` method:
+
+[source,ruby]
+----
+scheme.matches_range?("1.12.0", range)  # => true
+----
+
+== Use Cases
+
+=== Dependency Constraints
+
+[source,ruby]
+----
+require 'version'
+
+MIN_VERSION = VersionRange.new(:after, scheme, version: "1.0.0")
+MAX_VERSION = VersionRange.new(:before, scheme, version: "2.0.0")
+
+def compatible?(version_string)
+  scheme.matches_range?(version_string, MIN_VERSION) &&
+    scheme.matches_range?(version_string, MAX_VERSION)
+end
+
+compatible?("1.5.0")  # => true
+compatible?("2.0.0")  # => false
+----
+
+=== Feature Flags
+
+[source,ruby]
+----
+FEATURE_VERSION = VersionRange.new(:after, scheme, version: "2.0.0")
+
+def new_feature_available?(current_version)
+  scheme.matches_range?(current_version, FEATURE_VERSION)
+end
+----

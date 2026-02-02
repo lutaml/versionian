@@ -1,0 +1,260 @@
+---
+layout: default
+title: Declarative Schemes
+nav_order: 2
+parent: Core Topics
+---
+
+= Declarative Schemes
+
+== General
+
+Declarative schemes define version formats using segment definitions instead of regular expressions. Each component specifies its type, separator, prefix, and optional status, allowing the parser to extract components in O(n) time.
+
+Benefits over regex-based patterns:
+
+* **No ReDoS vulnerabilities** - State machine parsing is immune to catastrophic backtracking
+* **O(n) performance** - Single pass through the string
+* **Declarative syntax** - Clear, readable component definitions
+* **Type-aware parsing** - Each component type handles its own validation
+
+== YAML schema
+
+[source,yaml]
+----
+name: my_scheme               <1>
+type: declarative             <2>
+description: Custom scheme    <3>
+components:                  <4>
+  - name: major
+    type: integer
+    separator: "."           <5>
+  - name: minor
+    type: integer
+    separator: "."           <6>
+  - name: patch
+    type: integer            <7>
+----
+<1> Unique scheme identifier (symbol).
+<2> Scheme type: `declarative`.
+<3> Optional description of the scheme.
+<4> Array of component definitions in order.
+<5> Separator that precedes this component.
+<6> Each segment can have its own separator.
+<7> Last segment typically has no separator.
+
+Where,
+
+`name`:: Symbol identifier for the scheme.
+`type`:: Scheme type (`declarative`).
+`description`:: Human-readable description.
+`components`:: Array of component definitions.
+
+.Component attributes
+
+[cols="1,1"]
+|===
+|Attribute |Purpose
+
+|name
+|Component name (symbol)
+
+|type
+|Component type (integer, string, enum, date_part, etc.)
+
+|separator
+|String that precedes this component (e.g., `"."`)
+
+|prefix
+|String that identifies an optional component (e.g., `"-"`, `"+"`)
+
+|optional
+|Boolean: true if component may be absent
+
+|include_prefix_in_value
+|Boolean: include prefix in value for component type parsing
+
+|subtype
+|For date_part: `year`, `month`, `day`, `week`
+
+|values
+|For enum type: allowed values
+
+|order
+|For enum type: comparison order
+
+|validate
+|Hash with `min`/`max` validation rules
+|===
+
+== Loading declarative schemes
+
+[source,ruby]
+----
+# Load from YAML file
+scheme = Versionian::SchemeLoader.from_yaml_file('schemes/custom.yaml')
+
+# Register for use
+Versionian.register_scheme(:custom, scheme)
+
+# Use the scheme
+version = scheme.parse("1.2.3")
+puts version.major  # => 1
+----
+
+== Examples
+
+=== Semantic versioning
+
+[source,yaml]
+----
+name: semantic
+type: declarative
+description: Semantic versioning
+components:
+  - name: major
+    type: integer
+    separator: "."
+  - name: minor
+    type: integer
+    separator: "."
+  - name: patch
+    type: integer
+  - name: prerelease
+    type: string
+    prefix: "-"
+    optional: true
+  - name: build
+    type: string
+    prefix: "+"
+    optional: true
+----
+
+Usage:
+
+[source,ruby]
+----
+scheme = Versionian::SchemeLoader.from_yaml_file('schemes/semantic.yaml')
+
+v = scheme.parse("1.2.3-alpha.1+build.123")
+v.major      # => 1
+v.minor      # => 2
+v.patch      # => 3
+v.prerelease # => "alpha.1"
+v.build      # => "build.123"
+
+# Optional components are nil when absent
+v = scheme.parse("1.2.3")
+v.prerelease # => nil
+v.build      # => nil
+----
+
+=== Calendar versioning
+
+[source,yaml]
+----
+name: calver
+type: declarative
+description: Calendar versioning YYYY.MM.DD
+components:
+  - name: year
+    type: date_part
+    subtype: year
+    separator: "."
+  - name: month
+    type: date_part
+    subtype: month
+    separator: "."
+  - name: day
+    type: date_part
+    subtype: day
+----
+
+Usage:
+
+[source,ruby]
+----
+scheme = Versionian::SchemeLoader.from_yaml_file('schemes/calver.yaml')
+
+v = scheme.parse("2024.01.17")
+v.year   # => 2024
+v.month  # => 1 (not "01")
+v.day    # => 17
+
+# Invalid dates raise ParseError
+scheme.parse("2024.13.17")  # => Invalid month '13'
+scheme.parse("2024.02.30")  # => Invalid day '30'
+----
+
+=== SoloVer with postfix
+
+[source,yaml]
+----
+name: solover
+type: declarative
+description: Single number with optional postfix
+components:
+  - name: number
+    type: integer
+  - name: postfix
+    type: postfix
+    prefix: "+"
+    optional: true
+    include_prefix_in_value: true  <1>
+----
+<1> Postfix type handles prefix internally, so include it in the value.
+
+Usage:
+
+[source,ruby]
+----
+scheme = Versionian::SchemeLoader.from_yaml_file('schemes/solover.yaml')
+
+v = scheme.parse("5")
+v.number   # => 5
+v.postfix  # => nil
+
+v = scheme.parse("5+hotfix")
+v.number    # => 5
+v.postfix   # => {:prefix=>"+", :identifier=>"hotfix"}
+
+v = scheme.parse("5-beta")
+v.number    # => 5
+v.postfix   # => {:prefix=>"-", :identifier=>"beta"}
+----
+
+=== Enum with custom ordering
+
+[source,yaml]
+----
+name: stage
+type: declarative
+description: Release stage with ordering
+components:
+  - name: major
+    type: integer
+    separator: "."
+  - name: minor
+    type: integer
+    separator: "."
+  - name: stage
+    type: enum
+    prefix: "-"
+    optional: true
+    values: [alpha, beta, rc, stable]
+    order: [alpha, beta, rc, stable]
+----
+
+Usage:
+
+[source,ruby]
+----
+scheme = Versionian::SchemeLoader.from_yaml_file('schemes/stage.yaml')
+
+v = scheme.parse("1.2.0-beta")
+v.stage  # => :beta
+
+# Comparison respects order
+scheme.compare("1.2.0-alpha", "1.2.0-beta")  # => -1 (alpha < beta)
+scheme.compare("1.2.0-rc", "1.2.0-stable")    # => -1 (rc < stable)
+----

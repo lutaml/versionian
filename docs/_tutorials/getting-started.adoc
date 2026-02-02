@@ -1,0 +1,119 @@
+---
+layout: default
+title: Getting Started
+nav_order: 1
+parent: Tutorials
+---
+
+= Getting Started with Versionian
+
+== Installation
+
+Add Versionian to your Gemfile:
+
+[source,ruby]
+----
+gem 'versionian'
+----
+
+Or install directly:
+
+[source,shell]
+----
+gem install versionian
+----
+
+== Basic Usage
+
+=== Parsing Versions
+
+[source,ruby]
+----
+require 'versionian'
+
+# Use built-in Semantic Versioning
+scheme = Versionian.get_scheme(:semantic)
+version = scheme.parse("1.12.0")
+
+puts version.raw_string    # => "1.12.0"
+puts version.component(:major).value  # => 1
+puts version.component(:minor).value  # => 12
+puts version.component(:patch).value  # => 0
+----
+
+=== Comparing Versions
+
+[source,ruby]
+----
+scheme = Versionian.get_scheme(:semantic)
+
+v1 = scheme.parse("1.12.0")
+v2 = scheme.parse("2.0.0")
+
+result = v1 <=> v2
+# => -1 (v1 is less than v2)
+
+# Or use scheme comparison
+result = scheme.compare("1.12.0", "2.0.0")
+# => -1
+----
+
+=== Building Versions Programmatically
+
+[source,ruby]
+----
+scheme = Versionian.get_scheme(:semantic)
+
+version = scheme.build(major: 1, minor: 12, patch: 0)
+puts version.to_s  # => "1.12.0"
+----
+
+== Using different schemes
+
+=== Calendar Versioning
+
+[source,ruby]
+----
+scheme = Versionian.get_scheme(:calver)
+version = scheme.parse("2024.03.22")
+
+puts version.to_s  # => "2024.03.22"
+----
+
+=== Custom declarative scheme
+
+Create a custom scheme using YAML:
+
+[source,yaml]
+----
+# schemes/my_app.yaml
+name: my_app
+type: declarative
+description: MyApp versioning
+components:
+  - name: major
+    type: integer
+    separator: "."
+  - name: minor
+    type: integer
+    separator: "."
+  - name: patch
+    type: integer
+----
+
+[source,ruby]
+----
+# Load and use the scheme
+scheme = Versionian::SchemeLoader.from_yaml_file('schemes/my_app.yaml')
+Versionian.register_scheme(:my_app, scheme)
+
+version = scheme.parse("1.2.3")
+puts version.major  # => 1
+----
+
+== Next Steps
+
+* link:../core-topics/schemes.html[Learn about version schemes]
+* link:../core-topics/declarative-schemes.html[Create custom declarative schemes]
+* link:../core-topics/range-matching.html[Use version range matching]
+* link:../guides/custom-schemes.html[Build custom scheme classes]
