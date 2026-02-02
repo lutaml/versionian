@@ -40,11 +40,11 @@ module Versionian
             # Check if the prefix was just before our current position
             # (meaning it was used as a boundary marker)
             prefix_before_position = position >= segment.prefix.length &&
-              version_string[position - segment.prefix.length, segment.prefix.length] == segment.prefix
+                                     version_string[position - segment.prefix.length, segment.prefix.length] == segment.prefix
 
             # For include_prefix_in_value, check if we're at a prefix-like character
             prefix_like_char = segment.include_prefix_in_value &&
-              ["+", "-"].include?(version_string[position, 1])
+                               ["+", "-"].include?(version_string[position, 1])
 
             prefix_present = prefix_at_position || prefix_before_position || prefix_like_char
 
@@ -55,11 +55,7 @@ module Versionian
 
             # If prefix was before our position, we're already past it, so don't consume again
             # If prefix is at our position, consume it (unless include_prefix_in_value)
-            if prefix_at_position
-              unless segment.include_prefix_in_value
-                position += segment.prefix.length
-              end
-            end
+            position += segment.prefix.length if prefix_at_position && !segment.include_prefix_in_value
           end
 
           # Find where this segment ends (look ahead to next segment's markers)
@@ -88,19 +84,17 @@ module Versionian
 
           # After processing this segment, consume the separator for the next segment
           # The separator is defined on the CURRENT segment and comes BEFORE the next segment
-          if segment.separator && !segment.separator.empty?
-            if position < version_string.length
-              if version_string[position, segment.separator.length] == segment.separator
-                position += segment.separator.length
-              end
-              # If separator not found at position, the next segment will handle it
-            end
+          next unless segment.separator && !segment.separator.empty?
+
+          if (position < version_string.length) && (version_string[position, segment.separator.length] == segment.separator)
+            position += segment.separator.length
+            # If separator not found at position, the next segment will handle it
           end
         end
 
         # Check that we consumed the entire string
         if position < version_string.length
-          remaining = version_string[position..-1]
+          remaining = version_string[position..]
           raise Errors::ParseError,
                 "Unexpected trailing content after parsing: '#{remaining}'"
         end
@@ -154,37 +148,37 @@ module Versionian
           end
 
           # Check for next segment's prefix (always valid as a boundary)
-          if next_segment.prefix && !next_segment.prefix.empty?
-            # Check if the prefix exists in the remaining string (from position onwards)
-            remaining = string[position..]
-            found_prefix = false
+          next unless next_segment.prefix && !next_segment.prefix.empty?
 
-            if remaining
-              prefix_index_in_remaining = remaining.index(next_segment.prefix)
-              if prefix_index_in_remaining
-                # Calculate the actual position in the full string
-                actual_prefix_pos = position + prefix_index_in_remaining
-                candidates << actual_prefix_pos
+          # Check if the prefix exists in the remaining string (from position onwards)
+          remaining = string[position..]
+          found_prefix = false
+
+          if remaining
+            prefix_index_in_remaining = remaining.index(next_segment.prefix)
+            if prefix_index_in_remaining
+              # Calculate the actual position in the full string
+              actual_prefix_pos = position + prefix_index_in_remaining
+              candidates << actual_prefix_pos
+              found_prefix = true
+            end
+          end
+
+          # For include_prefix_in_value segments, also check for alternative prefixes
+          if next_segment.include_prefix_in_value
+            ["+", "-"].each do |alt_prefix|
+              next unless alt_prefix != next_segment.prefix
+
+              alt_index_in_remaining = remaining&.index(alt_prefix)
+              if alt_index_in_remaining
+                candidates << (position + alt_index_in_remaining)
                 found_prefix = true
               end
             end
-
-            # For include_prefix_in_value segments, also check for alternative prefixes
-            if next_segment.include_prefix_in_value
-              ["+", "-"].each do |alt_prefix|
-                if alt_prefix != next_segment.prefix
-                  alt_index_in_remaining = remaining&.index(alt_prefix)
-                  if alt_index_in_remaining
-                    candidates << (position + alt_index_in_remaining)
-                    found_prefix = true
-                  end
-                end
-              end
-            end
-
-            # Only stop looking if we found a prefix in the remaining string
-            break if found_prefix
           end
+
+          # Only stop looking if we found a prefix in the remaining string
+          break if found_prefix
         end
 
         candidates.compact.min

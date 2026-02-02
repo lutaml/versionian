@@ -21,9 +21,7 @@ module Versionian
         subtype = definition.subtype
         if subtype && RANGES.key?(subtype.to_sym)
           min, max = RANGES[subtype.to_sym]
-          unless int_val.between?(min, max)
-            raise Errors::ParseError, "Invalid #{subtype} '#{int_val}'. Must be between #{min} and #{max}"
-          end
+          raise Errors::ParseError, "Invalid #{subtype} '#{int_val}'. Must be between #{min} and #{max}" unless int_val.between?(min, max)
         end
 
         int_val

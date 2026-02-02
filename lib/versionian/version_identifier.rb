@@ -51,11 +51,11 @@ module Versionian
     def self.build(scheme:, components:)
       # Build raw_string from components using format_template if available
       raw_string = if scheme.format_template
-                    render_from_template(scheme.format_template, scheme.component_definitions, components)
-                  else
-                    # Fallback: join components with dots
-                    components.map { |name, value| value.to_s }.join(".")
-                  end
+                     render_from_template(scheme.format_template, scheme.component_definitions, components)
+                   else
+                     # Fallback: join components with dots
+                     components.map { |_name, value| value.to_s }.join(".")
+                   end
 
       # Build component objects
       component_objects = components.map do |name, value|
@@ -75,15 +75,15 @@ module Versionian
       # Build comparable_array
       # Special handling for Semantic scheme: use Gem::Version for comparison
       comparable_array = if scheme.is_a?(Schemes::Semantic)
-                          require "rubygems/version"
-                          version_str = components.map { |name, value| value.to_s }.join(".")
-                          [::Gem::Version.new(version_str)]
-                        else
-                          component_objects.map do |comp|
-                            type = ComponentTypes.resolve(comp.type)
-                            type.to_comparable(comp.value, comp)
-                          end
-                        end
+                           require "rubygems/version"
+                           version_str = components.map { |_name, value| value.to_s }.join(".")
+                           [::Gem::Version.new(version_str)]
+                         else
+                           component_objects.map do |comp|
+                             type = ComponentTypes.resolve(comp.type)
+                             type.to_comparable(comp.value, comp)
+                           end
+                         end
 
       new(
         raw_string: raw_string,
@@ -93,9 +93,7 @@ module Versionian
       )
     end
 
-    private
-
-    def self.render_from_template(format_template, component_definitions, components)
+    def self.render_from_template(format_template, _component_definitions, components)
       result = format_template.dup
 
       # Process optional segments []

@@ -32,12 +32,12 @@ RSpec.describe Versionian::ComponentDefinition do
       defn = described_class.new(
         name: :stage,
         type: :enum,
-        values: [:alpha, :beta, :rc],
-        order: [:alpha, :beta, :rc]
+        values: %i[alpha beta rc],
+        order: %i[alpha beta rc]
       )
 
-      expect(defn.values).to eq([:alpha, :beta, :rc])
-      expect(defn.order).to eq([:alpha, :beta, :rc])
+      expect(defn.values).to eq(%i[alpha beta rc])
+      expect(defn.order).to eq(%i[alpha beta rc])
     end
 
     it "accepts optional flag" do
@@ -80,16 +80,16 @@ RSpec.describe Versionian::ComponentDefinition do
       hash = {
         "name" => "stage",
         "type" => "enum",
-        "values" => ["alpha", "beta"],
-        "order" => ["alpha", "beta"]
+        "values" => %w[alpha beta],
+        "order" => %w[alpha beta]
       }
 
       defn = described_class.from_hash(hash)
 
       expect(defn.name).to eq(:stage)
       expect(defn.type).to eq(:enum)
-      expect(defn.values).to eq([:alpha, :beta])
-      expect(defn.order).to eq([:alpha, :beta])
+      expect(defn.values).to eq(%i[alpha beta])
+      expect(defn.order).to eq(%i[alpha beta])
     end
 
     it "handles nil values" do

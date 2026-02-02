@@ -95,9 +95,9 @@ RSpec.describe "Scheme Discovery API" do
     end
 
     it "raises error for unknown scheme" do
-      expect {
+      expect do
         Versionian.get_scheme(:unknown)
-      }.to raise_error(Versionian::Errors::InvalidSchemeError, /Unknown scheme: unknown/)
+      end.to raise_error(Versionian::Errors::InvalidSchemeError, /Unknown scheme: unknown/)
     end
   end
 end

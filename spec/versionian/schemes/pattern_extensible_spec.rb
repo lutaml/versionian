@@ -10,7 +10,7 @@ RSpec.describe Versionian::Schemes::Pattern do
         { name: :minor, type: :integer },
         { name: :patch, type: :integer },
         { name: :patchlevel, type: :integer, optional: true },
-        { name: :stage, type: :enum, values: [:alpha, :beta, :rc], order: [:alpha, :beta, :rc], optional: true },
+        { name: :stage, type: :enum, values: %i[alpha beta rc], order: %i[alpha beta rc], optional: true },
         { name: :iteration, type: :integer, optional: true }
       ]
     )
@@ -52,7 +52,7 @@ RSpec.describe Versionian::Schemes::Pattern do
             { name: :minor, type: :integer },
             { name: :patch, type: :integer },
             { name: :patchlevel, type: :integer, optional: true },
-            { name: :stage, type: :enum, values: [:alpha, :beta, :rc], order: [:alpha, :beta, :rc], optional: true },
+            { name: :stage, type: :enum, values: %i[alpha beta rc], order: %i[alpha beta rc], optional: true },
             { name: :iteration, type: :integer, optional: true }
           ]
         )

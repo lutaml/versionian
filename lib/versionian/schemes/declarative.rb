@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative '../parsers/declarative'
-require_relative '../version_scheme'
+require_relative "../parsers/declarative"
+require_relative "../version_scheme"
 
 module Versionian
   module Schemes

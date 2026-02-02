@@ -1,8 +1,10 @@
-source 'https://rubygems.org'
+# frozen_string_literal: true
 
-gem 'jekyll'
-gem 'just-the-docs'
-gem 'jekyll-asciidoc'
-gem 'jekyll-seo-tag'
-gem 'jekyll-sitemap'
-gem 'rouge'
+source "https://rubygems.org"
+
+gem "jekyll"
+gem "jekyll-asciidoc"
+gem "jekyll-seo-tag"
+gem "jekyll-sitemap"
+gem "just-the-docs"
+gem "rouge"

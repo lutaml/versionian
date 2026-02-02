@@ -93,7 +93,7 @@ module Versionian
 
       def build_components(version_string, gem_version)
         # Extract components from version string
-        parts = version_string.split(/[+-]/).first.split(".")
+        version_string.split(/[+-]/).first.split(".")
         components = []
 
         components << VersionComponent.new(

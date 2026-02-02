@@ -126,7 +126,7 @@ module Versionian
           type = ComponentTypes.resolve(comp_def.type)
 
           # Build placeholder string, converting symbol name to string
-          placeholder = "{#{comp_def.name.to_s}}"
+          placeholder = "{#{comp_def.name}}"
 
           if component
             formatted_value = type.format(component.value)
@@ -152,13 +152,9 @@ module Versionian
       def compile_and_validate_pattern(pattern_str)
         # Basic ReDoS protection
         # Check for dangerous patterns that can cause catastrophic backtracking
-        if pattern_str.include?("\\d+*") || pattern_str.include?('\d+*')
-          raise Errors::InvalidSchemeError, "Pattern may cause catastrophic backtracking"
-        end
+        raise Errors::InvalidSchemeError, "Pattern may cause catastrophic backtracking" if pattern_str.include?("\\d+*") || pattern_str.include?('\d+*')
 
-        if pattern_str =~ /\(\([^(]*\*\)[^)]*\*\)/ || pattern_str =~ /\(\([^(]*\+\)[^)]*\+\)/
-          raise Errors::InvalidSchemeError, "Pattern may cause catastrophic backtracking"
-        end
+        raise Errors::InvalidSchemeError, "Pattern may cause catastrophic backtracking" if pattern_str =~ /\(\([^(]*\*\)[^)]*\*\)/ || pattern_str =~ /\(\([^(]*\+\)[^)]*\+\)/
 
         raise Errors::InvalidSchemeError, "Pattern has too many nested quantifiers" if pattern_str.scan(/\{/).length > 5
 

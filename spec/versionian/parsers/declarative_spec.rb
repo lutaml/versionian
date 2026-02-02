@@ -128,8 +128,8 @@ RSpec.describe Versionian::Parsers::Declarative do
           Versionian::ComponentDefinition.new(name: :major, type: :integer, separator: "."),
           Versionian::ComponentDefinition.new(name: :minor, type: :integer, separator: "."),
           Versionian::ComponentDefinition.new(name: :stage, type: :enum, prefix: "-", optional: true,
-                                              values: [:alpha, :beta, :rc, :stable],
-                                              order: [:alpha, :beta, :rc, :stable])
+                                              values: %i[alpha beta rc stable],
+                                              order: %i[alpha beta rc stable])
         ]
       end
       let(:parser) { described_class.new(segments) }
