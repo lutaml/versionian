@@ -1,0 +1,33 @@
+# Lychee link checker configuration for Versionian docs
+
+# Exclude certain paths and patterns
+exclude = [
+  # Local anchors and file links
+  'file://',
+  # External sites that may block crawlers
+  'twitter.com',
+  'x.com',
+  # GitHub edit links (may be broken for some pages)
+  'edit/main',
+]
+
+# Only check certain URLs
+# Uncomment to whitelist instead of blacklist
+# include = ['https://github.com/*']
+
+# Acceptable link status codes
+accept = [200, 201, 202, 203, 204, 205, 206, 207, 208, 226, 429]
+
+# Skip certain URLs that we know are problematic
+exclude_path = [
+  # Exclude vendor directories
+  "vendor/",
+  # Exclude node_modules if any
+  "node_modules/",
+]
+
+# Don't check links in certain file types (shouldn't apply to HTML)
+exclude_files = [
+  "*.tmp",
+  "*.bak",
+]
