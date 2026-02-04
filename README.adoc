@@ -757,6 +757,18 @@ Versionian supports matching versions against range specifications.
 ----
 scheme = Versionian.get_scheme(:semantic)
 
+# Exact version match
+range = Versionian::VersionRange.new(:equals, scheme, version: "1.12.0")
+range.matches?("1.12.0")  # => true
+range.matches?("1.12.1")  # => false
+range.matches?("1.11.0")  # => false
+
+# Before a specific version (exclusive)
+range = Versionian::VersionRange.new(:before, scheme, version: "1.12.0")
+range.matches?("1.11.0")  # => true
+range.matches?("1.12.0")  # => false
+range.matches?("1.13.0")  # => false
+
 # After a specific version (inclusive)
 range = Versionian::VersionRange.new(:after, scheme, version: "1.12.0")
 range.matches?("1.13.0")  # => true

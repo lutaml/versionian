@@ -52,6 +52,27 @@ between_range = Versionian::VersionRange.new(:between, scheme, from: "1.12.0", t
 
 == Matching Versions
 
+.Exact match
+[source,ruby]
+----
+range = Versionian::VersionRange.new(:equals, scheme, version: "1.12.0")
+
+range.matches?("1.12.0")  # => true
+range.matches?("1.12.1")  # => false
+range.matches?("1.11.0")  # => false
+----
+
+.Before a version (exclusive)
+[source,ruby]
+----
+range = Versionian::VersionRange.new(:before, scheme, version: "1.12.0")
+
+range.matches?("1.11.0")  # => true
+range.matches?("1.12.0")  # => false
+range.matches?("1.13.0")  # => false
+----
+
+.After a version (inclusive)
 [source,ruby]
 ----
 range = Versionian::VersionRange.new(:after, scheme, version: "1.12.0")
@@ -59,6 +80,16 @@ range = Versionian::VersionRange.new(:after, scheme, version: "1.12.0")
 range.matches?("1.13.0")  # => true
 range.matches?("1.12.0")  # => true (inclusive)
 range.matches?("1.11.0")  # => false
+----
+
+.Between two versions
+[source,ruby]
+----
+range = Versionian::VersionRange.new(:between, scheme, from: "1.12.0", to: "2.0.0")
+
+range.matches?("1.15.0")  # => true
+range.matches?("2.0.0")   # => true (inclusive)
+range.matches?("2.1.0")   # => false
 ----
 
 == Scheme Methods
